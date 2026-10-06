@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบบันทึกคิวคนงาน (Admin)</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <!-- FontAwesome icon CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap');
+        body {
+            font-family: 'Sarabun', sans-serif;
+            background-color: #f3f4f6;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+
+    <!-- Header Section -->
+    <header class="bg-[#007a53] text-white p-4 shadow-md">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <div class="flex items-center space-x-3">
+                <i class="fa-solid fa-clipboard-list text-2xl"></i>
+                <div>
+                    <h1 class="text-xl font-bold">ระบบบันทึกคิวคนงาน</h1>
+                    <p class="text-xs text-gray-200">Worker Queue Management • Admin Panel</p>
+                </div>
+            </div>
+            <div class="bg-amber-500 text-xs px-3 py-1.5 rounded-full font-bold shadow-sm">
+                <i class="fa-solid fa-user-shield mr-1"></i> โหมดแอดมิน (จัดการได้เต็มรูปแบบ)
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto p-4 md:p-6 space-y-6">
+
+        <!-- Dashboard Cards Section -->
+        <section class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-blue-500">
+                <div class="text-xs text-gray-500 font-medium mb-1">คิวทั้งหมดในหน้านี้</div>
+                <div id="count-all" class="text-3xl font-bold text-gray-800">0</div>
+            </div>
+            <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-yellow-500">
+                <div class="text-xs text-gray-500 font-medium mb-1">รอคิว</div>
+                <div id="count-pending" class="text-3xl font-bold text-yellow-600">0</div>
+            </div>
+            <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-orange-500">
+                <div class="text-xs text-gray-500 font-medium mb-1">กำลังดำเนินการ</div>
+                <div id="count-processing" class="text-3xl font-bold text-orange-600">0</div>
+            </div>
+            <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-green-500">
+                <div class="text-xs text-gray-500 font-medium mb-1">เสร็จสิ้น</div>
+                <div id="count-completed" class="text-3xl font-bold text-green-600">0</div>
+            </div>
+        </section>
+
+        <!-- Admin Control / Action Bar -->
+        <section class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-xl shadow-sm">
+            <button onclick="openModal()" class="w-full sm:w-auto bg-[#007a53] hover:bg-[#006342] text-white font-medium px-5 py-2.5 rounded-lg transition duration-200 shadow-sm flex items-center justify-center gap-2 cursor-pointer">
+                <i class="fa-solid fa-plus"></i> บันทึกคิวใหม่
+            </button>
+            <div class="w-full sm:w-auto flex flex-wrap items-center gap-2">
+                <div class="relative flex-1 sm:flex-initial min-w-[200px]">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-3 text-gray-400 text-sm"></i>
+                    <input type="text" id="search-input" oninput="filterData()" placeholder="ค้นหาเลขคิว / ชื่อ / บริษัท / ทะเบียนรถ" class="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#007a53]">
+                </div>
+                <select id="status-filter" onchange="filterData()" class="border border-gray-300 rounded-lg text-sm p-2 bg-white focus:outline-none focus:ring-2 focus:ring-[#007a53]">
+                    <option value="all">ทุกสถานะ</option>
+                    <option value="รอคิว">รอคิว</option>
+                    <option value="กำลังดำเนินการ">กำลังดำเนินการ</option>
+                    <option value="เสร็จสิ้น">เสร็จสิ้น</option>
+                </select>
+                <input type="date" id="date-filter" onchange="filterData()" class="border border-gray-300 rounded-lg text-sm p-2 bg-white focus:outline-none focus:ring-2 focus:ring-[#007a53]">
+                <button onclick="exportCSV()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition flex items-center justify-center gap-2 cursor-pointer shadow-sm">
+                    <i class="fa-solid fa-file-csv"></i> Export CSV
+                </button>
+            </div>
+        </section>
+
+        <!-- Data Table Section -->
+        <section class="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-200">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-gray-50 border-b border-gray-200 text-xs text-gray-600 font-bold uppercase tracking-wider">
+                            <th class="p-4 w-20 text-center">เลขคิว</th>
+                            <th class="p-4">เวลา</th>
+                            <th class="p-4">คนงาน</th>
+                            <th class="p-4">บริษัท</th>
+                            <th class="p-4">แผนก</th>
+                            <th class="p-4">โครงการ</th>
+                            <th class="p-4">งาน</th>
+                            <th class="p-4">ทะเบียนรถ</th>
+                            <th class="p-4 text-center">สถานะ</th>
+                            <th class="p-4 text-center w-32">จัดการ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="queue-table-body" class="text-sm divide-y divide-gray-100 text-gray-700">
+                        <!-- Data rows inject here dynamically -->
+                    </tbody>
+                </table>
+            </div>
+            <div id="no-data-alert" class="hidden p-8 text-center text-gray-400 flex flex-col items-center justify-center gap-2">
+                <i class="fa-regular fa-folder-open text-3xl"></i>
+                <span>ยังไม่มีข้อมูลคิวงาน</span>
+            </div>
+        </section>
+    </main>
+
+    <!-- Queue Form Modal (Add / Edit) -->
+    <div id="queue-modal" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 transition-opacity">
+        <div class="bg-white w-full max-w-2xl rounded-xl shadow-xl overflow-hidden transform transition-all flex flex-col">
+            <div class="bg-[#007a53] text-white p-4 flex justify-between items-center">
+                <h3 id="modal-title" class="font-bold text-lg">บันทึกคิวงานใหม่</h3>
+                <button onclick="closeModal()" class="text-white/80 hover:text-white text-xl cursor-pointer"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form id="queue-form" onsubmit="saveQueue(event)" class="p-6 space-y-4 overflow-y-auto max-h-[80vh]">
+                <input type="hidden" id="edit-id">
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-600 mb-1">ชื่อคนงาน <span class="text-red-500">*</span></label>
+                        <input type="text" id="worker-name" required placeholder="ระบุชื่อ-นามสกุลคนงาน" class="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#007a53] focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-600 mb-1">บริษัท / สังกัด <span class="text-red-500">*</span></label>
+                        <input type="text" id="company" required placeholder="ระบุชื่อบริษัทหรือซัพพลายเออร์" class="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#007a53] focus:outline-none">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-600 mb-1">แผนกงาน</label>
+                        <input type="text" id="department" placeholder="เช่น คลังสินค้า, ก่อสร้าง" class="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#007a53] focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-600 mb-1">โครงการ / ไซต์งาน</label>
+                        <input type="text" id="project" placeholder="ระบุชื่อโครงการ" class="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#007a53] focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-600 mb-1">ทะเบียนรถ (ถ้ามี)</label>
+                        <input type="text" id="truck-plate" placeholder="เช่น 1กข-1234 กทม." class="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#007a53] focus:outline-none">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-gray-600 mb-1">รายละเอียดงาน / หมายเหตุ</label>
+                    <textarea id="task-detail" rows="2" placeholder="ระบุภารกิจหรือรายละเอียดงานที่ต้องทำ" class="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#007a53] focus:outline-none"></textarea>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-600 mb-1">วันที่และเวลา <span class="text-red-500">*</span></label>
+                        <input type="datetime-local" id="queue-time" required class="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#007a53] focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-600 mb-1">สถานะเริ่มต้น <span class="text-red-500">*</span></label>
+                        <select id="queue-status" required class="w-full p-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-[#007a53] focus:outline-none">
+                            <option value="รอคิว">รอคิว</option>
+                            <option value="กำลังดำเนินการ">กำลังดำเนินการ</option>
+                            <option value="เสร็จสิ้น">เสร็จสิ้น</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="flex justify-end gap-2 pt-4 border-t border-gray-100">
+                    <button type="button" onclick="closeModal()" class="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50 cursor-pointer">ยกเลิก</button>
+                    <button type="submit" class="px-4 py-2 bg-[#007a53] hover:bg-[#006342] text-white rounded-lg text-sm font-medium shadow-sm cursor-pointer">บันทึกข้อมูล</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Active Logic Javascript LocalStorage System -->
+    <script>
+        // Mock Initial Data if LocalStorage Empty
+        let queueData = JSON.parse(localStorage.getItem('admin_worker_queues')) || [
+            { id: 1, time: "2026-10-06T08:30", worker: "สมชาย ใจดี", company: "บจก. ก่อสร้างไทย", dept: "ช่างโครงสร้าง", project: "อาคาร A", task: "เทปูนชั้น 2", plate: "83-1234 นนทบุรี", status: "เสร็จสิ้น" },
+            { id: 2, time: "2026-10-06T10:00", worker: "สมศักดิ์ รักงาน", company: "ซัพพลายเออร์ เอส", dept: "ขนส่ง", project: "คลังสินค้าหลัก", task: "ลงเหล็กเส้น", plate: "70-5555 กทม.", status: "กำลังดำเนินการ" },
+            { id: 3, time: "2026-10-06T13:15", worker: "วิชัย เรียนดี", company: "บจก. ยูนิเวิร์ส", dept: "ไฟฟ้า", project: "อาคาร B", task: "เดินสายไฟเมน", plate: "ผข-999 เชียงใหม่", status: "รอคิว" }
+        ];
+
+        // Save back to LocalStorage to sustain data over refresh
+        function saveToStorage() {
+            localStorage.setItem('admin_worker_queues', JSON.stringify(queueData));
+            updateDashboard();
+        }
+
+        // Format DateTime String into reader friendly form
+        function formatThaiDateTime(dateTimeStr) {
+            if(!dateTimeStr) return "-";
+            const dt = new Date(dateTimeStr);
+            const rDate = dt.toLocaleDateString('th-TH', { day: '2-digit', month: '2-digit', year: 'numeric' });
+            const rTime = dt.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' }) + ' น.';
+            return `${rDate} | ${rTime}`;
+        }
+
+        // Open Form Modal (Handles both Create and Update view state)
+        function openModal(id = null) {
+            const modal = document.getElementById('queue-modal');
+            const form = document.getElementById('queue-form');
+            form.reset();
+            
+            if(id) {
+                document.getElementById('modal-title').innerText = "แก้ไขข้อมูลคิวงาน";
+                const target = queueData.find(item => item.id === id);
+                if(target) {
+                    document.getElementById('edit-id').value = target.id;
+                    document.getElementById('worker-name').value = target.worker;
+                    document.getElementById('company').value = target.company;
+                    document.getElementById('department').value = target.dept || '';
+                    document.getElementById('project').value = target.project || '';
+                    document.getElementById('truck-plate').value = target.truck-plate || target.plate || '';
+                    document.getElementById('task-detail').value = target.task || '';
+                    document.getElementById('queue-time').value = target.time;
+                    document.getElementById('queue-status').value = target.status;
+                }
+            } else {
+                document.getElementById('modal-title').innerText = "บันทึกคิวงานใหม่";
+                document.getElementById('edit-id').value = "";
+                // Preset today local time
+                const now = new Date();
+                now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+                document.getElementById('queue-time').value = now.toISOString().slice(0, 16);
+            }
+            modal.classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('queue-modal').classList.add('hidden');
+        }
+
+        // Handle Add or Edit Submissions
+        function saveQueue(e) {
+            e.preventDefault();
+            const id = document.getElementById('edit-id').value;
+            const worker = document.getElementById('worker-name').value;
+            const company = document.getElementById('company').value;
+            const dept = document.getElementById('department').value;
+            const project = document.getElementById('project').value;
+            const plate = document.getElementById('truck-plate').value;
+            const task = document.getElementById('task-detail').value;
+            const time = document.getElementById('queue-time').value;
+            const status = document.getElementById('queue-status').value;
+
+            if(id) {
+                // Update Logic
+                const index = queueData.findIndex(item => item.id == id);
+                if(index !== -1) {
+                    queueData[index] = { ...queueData[index], worker, company, dept, project, plate, task, time, status };
+                }
+            } else {
+                // Create Logic
+                const nextId = queueData.length > 0 ? Math.max(...queueData.map(o => o.id)) + 1 : 1;
+                queueData.push({ id: nextId, worker, company, dept, project, plate, task, time, status });
+            }
+
+            saveToStorage();
+            closeModal();
+            filterData();
+        }
+
+        // Quickly change status directly from table row
+        function updateRowStatus(id, newStatus) {
+            const index = queueData.findIndex(item => item.id == id);
+            if(index !== -1) {
+                queueData[index].status = newStatus;
+                saveToStorage();
+                filterData();
+            }
+        }
+
+        // Delete Row confirmation box
+        function deleteQueue(id) {
+            if(confirm("คุณต้องการลบข้อมูลคิวงานนี้ใช่หรือไม่?")) {
+                queueData = queueData.filter(item => item.id !== id);
+                saveToStorage();
+                filterData();
+            }
+        }
+
+        // Aggregate statistics cards
+        function updateDashboard() {
+            document.getElementById('count-all').innerText = queueData.length;
+            document.getElementById('count-pending').innerText = queueData.filter(i => i.status === 'รอคิว').length;
+            document.getElementById('count-processing').innerText = queueData.filter(i => i.status === 'กำลังดำเนินการ').length;
+            document.getElementById('count-completed').innerText = queueData.filter(i => i.status === 'เสร็จสิ้น').length;
+        }
+
+        // Search & Filter execution engine
+        function filterData() {
+            const searchVal = document.getElementById('search-input').value.toLowerCase();
+            const statusFilter = document.getElementById('status-filter').value;
+            const dateFilter = document.getElementById('date-filter').value;
+
+            const filtered = queueData.filter(item => {
+                const matchSearch = !searchVal || 
+                    item.id.toString().includes(searchVal) ||
+                    item.worker.toLowerCase().includes(searchVal) ||
+                    item.company.toLowerCase().includes(searchVal) ||
+                    (item.plate && item.plate.toLowerCase().includes(searchVal));
+
+                const matchStatus = statusFilter === 'all' || item.status === statusFilter;
+                
+                let matchDate = true;
+                if(dateFilter) {
+                    const itemDate = item.time.split('T')[0];
+                    matchDate = itemDate === dateFilter;
+                }
+
+                return matchSearch && matchStatus && matchDate;
+            });
+
+            renderTable(filtered);
+        }
+
+        // Output dynamic records rows to table body HTML
+        function renderTable(dataList) {
+            const tbody = document.getElementById('queue-table-body');
+            const alertBox = document.getElementById('no-data-alert');
+            tbody.innerHTML = '';
+
+            if(dataList.length === 0) {
+                alertBox.classList.remove('hidden');
+                return;
+            }
+            alertBox.classList.add('hidden');
+
+            dataList.forEach(item => {
+                let statusClass = "bg-yellow-100 text-yellow-800";
+                if(item.status === 'กำลังดำเนินการ') statusClass = "bg-orange-100 text-orange-800";
+                if(item.status === 'เสร็จสิ้น') statusClass = "bg-green-100 text-green-800";
+
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-gray-50 transition border-b border-gray-100 text-gray-700";
+                tr.innerHTML = `
+                    <td class="p-4 text-center font-bold text-gray-500">${item.id}</td>
+                    <td class="p-4 text-xs whitespace-nowrap">${formatThaiDateTime(item.time)}</td>
+                    <td class="p-4 font-medium text-gray-900">${item.worker}</td>
+                    <td class="p-4 text-xs">${item.company}</td>
+                    <td class="p-4 text-xs text-gray-500">${item.dept || '-'}</td>
+                    <td class="p-4 text-xs text-gray-500">${item.project || '-'}</td>
+                    <td class="p-4 text-xs" title="${item.task || ''}">${item.task ? (item.task.length > 20 ? item.task.slice(0,20)+'...' : item.task) : '-'}</td>
+                    <td class="p-4 text-xs font-semibold text-teal-700">${item.plate || '-'}</td>
+                    <td class="p-4 text-center">
+                        <select onchange="updateRowStatus(${item.id}, this.value)" class="text-xs font-semibold px-2 py-1 rounded-full cursor-pointer focus:outline-none ${statusClass}">
+                            <option value="รอคิว" ${item.status === 'รอคิว' ? 'selected' : ''}>⏳ รอคิว</option>
+                            <option value="กำลังดำเนินการ" ${item.status === 'กำลังดำเนินการ' ? 'selected' : ''}>⚙️ ดำเนินการ</option>
+                            <option value="เสร็จสิ้น" ${item.status === 'เสร็จสิ้น' ? 'selected' : ''}>✅ เสร็จสิ้น</option>
+                        </select>
+                    </td>
+                    <td class="p-4 text-center">
+                        <div class="flex items-center justify-center gap-1.5">
+                            <button onclick="openModal(${item.id})" class="text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-2 py-1 rounded text-xs transition cursor-pointer" title="แก้ไข">
+                                <i class="fa-solid fa-pen-to-square"></i>
+                            </button>
+                            <button onclick="deleteQueue(${item.id})" class="text-red-600 hover:text-red-800 bg-red-50 hover:bg-red-100 px-2 py-1 rounded text-xs transition cursor-pointer" title="ลบ">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // Export data pool inside Client storage to standard CSV format 
+        function exportCSV() {
+            if(queueData.length === 0) {
+                alert("ไม่มีข้อมูลที่จะส่งออก");
+                return;
+            }
+            
+            // CSV BOM support for reading Thai language correctly inside Microsoft Excel
+            let csvContent = "\uFEFF";
+            csvContent += "เลขคิว,วันที่และเวลา,ชื่อคนงาน,บริษัท/สังกัด,แผนก,โครงการ,รายละเอียดงาน,ทะเบียนรถ,สถานะ\n";
+
+            queueData.forEach(item => {
+                const row = [
+                    item.id,
+                    `"${item.time.replace('T', ' ')}"`,
+                    `"${item.worker}"`,
+                    `"${item.company}"`,
+                    `"${item.dept || '-'}"`,
+                    `"${item.project || '-'}"`,
+                    `"${(item.task || '-').replace(/"/g, '""')}"`,
+                    `"${item.plate || '-'}"`,
+                    `"${item.status}"`
+                ].join(",");
+                csvContent += row + "\n";
+            });
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            const url = URL.createObjectURL(blob);
+            link.setAttribute("href", url);
+            link.setAttribute("download", `worker_queue_report_${new Date().toISOString().slice(0,10)}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // Run Initial processes on page ready
+        window.onload = function() {
+            // Set today date preset as a filter helper
+            document.getElementById('date-filter').value = new Date().toISOString().slice(0,10);
+            updateDashboard();
+            filterData();
+        }
+    </script>
+</body>
+</html>
